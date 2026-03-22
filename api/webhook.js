@@ -13,17 +13,9 @@ import { kv }  from '@vercel/kv';
 
 export const config = { api: { bodyParser: true } };
 
-// ─── HMAC helper — tries all known OmniPulse variants ────────────────────────
-function computeHmac(message, secret, algo = 'sha1') {
-  return crypto.createHmac(algo, secret).update(message).digest('hex');
-}
-
-function buildResponse(ts, secret, hookId) {
-  // OmniPulse signs the _hook_id (random challenge UUID), not the timestamp.
-  // We return: timestamp|HMAC-SHA1(secret, hook_id)
-  const message = hookId || ts;
-  const hmac    = computeHmac(message, secret, 'sha1');
-  return `${ts}|${hmac}`;
+// ─── HMAC helper ──────────────────────────────────────────────────────────────
+function hmac(message, key) {
+  return crypto.createHmac('sha1', key).update(message).digest('hex');
 }
 
 // ─── Main handler ─────────────────────────────────────────────────────────────
@@ -39,11 +31,22 @@ export default async function handler(req, res) {
   const secret = process.env.OMNICONVERT_SECRET || '';
   const ts     = String(Math.floor(Date.now() / 1000));
 
-  // ── Debug log: print what OmniPulse sent and what we respond ──
-  console.log('[webhook] hook_id:', hookId);
-  console.log('[webhook] body keys:', Object.keys(body));
-  const debugResponse = buildResponse(ts, secret, hookId);
-  console.log('[webhook] responding:', debugResponse);
+  // ── Log all variants so we can identify the correct one from Vercel logs ──
+  const v1 = `${ts}|${hmac(ts,     secret)}`;                        // sign timestamp
+  const v2 = `${ts}|${hmac(hookId, secret)}`;                        // sign hook_id
+  const v3 = `${ts}|${hmac(ts + hookId, secret)}`;                   // sign ts+hook_id
+  const v4 = `${ts}|${hmac(hookId + ts, secret)}`;                   // sign hook_id+ts
+
+  console.log('[webhook] hook_id :', hookId);
+  console.log('[webhook] secret  :', secret ? `${secret.slice(0,4)}… (len ${secret.length})` : 'NOT SET');
+  console.log('[webhook] v1 sign(ts)          :', v1);
+  console.log('[webhook] v2 sign(hook_id)     :', v2);
+  console.log('[webhook] v3 sign(ts+hook_id)  :', v3);
+  console.log('[webhook] v4 sign(hook_id+ts)  :', v4);
+
+  // ── Use v1 (sign timestamp) — most common webhook pattern ──
+  const response = v1;
+  console.log('[webhook] responding with v1   :', response);
 
   // ── Store survey response (only real submissions, not pings) ──
   const payload = body._payload || {};
@@ -86,5 +89,5 @@ export default async function handler(req, res) {
   // ── Respond with timestamp|hmac ──
   res.status(200)
      .setHeader('Content-Type', 'text/plain')
-     .send(debugResponse);
+     .send(response);
 }
