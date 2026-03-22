@@ -41,15 +41,17 @@ export default async function handler(req, res) {
   const theirTs   = tMatch  ? tMatch[1]  : String(Math.floor(Date.now() / 1000));
   const theirHash = v1Match ? v1Match[1] : '';
 
-  // ── Stripe-style: HMAC-SHA256(secret, t + "." + rawBody) ─────────────────
-  const stripeMsg  = `${theirTs}.${rawBody}`;
-  const stripeHash = crypto.createHmac('sha256', secret).update(stripeMsg).digest('hex');
-  const response   = `${theirTs}|${stripeHash}`;
+  // ── Signing message: t + "." + rawBody (confirmed correct) ──────────────
+  const signMsg    = `${theirTs}.${rawBody}`;
+  const sha256Hash = crypto.createHmac('sha256', secret).update(signMsg).digest('hex');
+  const sha1Hash   = crypto.createHmac('sha1',   secret).update(signMsg).digest('hex');
 
-  console.log('[webhook] their sig :', revealSig);
-  console.log('[webhook] their hash:', theirHash);
-  console.log('[webhook] our  hash :', stripeHash);
-  console.log('[webhook] match?    :', theirHash === stripeHash);
+  console.log('[webhook] their hash (sha256):', theirHash);
+  console.log('[webhook] our   hash (sha256):', sha256Hash, '| match:', theirHash === sha256Hash);
+  console.log('[webhook] our   hash (sha1)  :', sha1Hash);
+
+  // Try sha1 response — OmniPulse may use SHA-256 internally but expect SHA-1 back
+  const response = `${theirTs}|${sha1Hash}`;
   console.log('[webhook] responding:', response);
 
   // ── Store real survey responses ───────────────────────────────────────────
