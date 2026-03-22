@@ -27,32 +27,21 @@ export default async function handler(req, res) {
   const hookId = body._hook_id || '';
   const secret = process.env.OMNICONVERT_SECRET || '';
 
-  // ── Extract OmniPulse's own timestamp from x-reveal-signature header ──────
-  // Header format: "t=1234567890,v1=<sha256_hmac>"
+  // ── Parse OmniPulse's x-reveal-signature header ──────────────────────────
+  // Header format: "t=1234567890,v1=<sha256_hmac_of_request>"
   const revealSig = req.headers['x-reveal-signature'] || '';
   const tMatch    = revealSig.match(/t=(\d+)/);
-  const theirTs   = tMatch ? tMatch[1] : String(Math.floor(Date.now() / 1000));
+  const v1Match   = revealSig.match(/v1=([a-f0-9]+)/);
+  const theirTs   = tMatch  ? tMatch[1]  : String(Math.floor(Date.now() / 1000));
+  const theirHash = v1Match ? v1Match[1] : '';
 
   console.log('[webhook] x-reveal-signature:', revealSig);
-  console.log('[webhook] using timestamp    :', theirTs);
-  console.log('[webhook] hook_id            :', hookId);
-  console.log('[webhook] secret len         :', secret.length);
+  console.log('[webhook] their ts  :', theirTs);
+  console.log('[webhook] their hash:', theirHash);
+  console.log('[webhook] hook_id   :', hookId);
 
-  // ── Try all variants using OmniPulse's timestamp ─────────────────────────
-  const v1 = `${theirTs}|${hmac('sha256', theirTs,           secret)}`;  // sha256 sign(ts)
-  const v2 = `${theirTs}|${hmac('sha256', hookId,            secret)}`;  // sha256 sign(hook_id)
-  const v3 = `${theirTs}|${hmac('sha256', theirTs + hookId,  secret)}`;  // sha256 sign(ts+id)
-  const v4 = `${theirTs}|${hmac('sha1',   theirTs,           secret)}`;  // sha1   sign(ts)
-  const v5 = `${theirTs}|${hmac('sha1',   hookId,            secret)}`;  // sha1   sign(hook_id)
-
-  console.log('[webhook] v1 sha256 sign(ts)         :', v1);
-  console.log('[webhook] v2 sha256 sign(hook_id)    :', v2);
-  console.log('[webhook] v3 sha256 sign(ts+hook_id) :', v3);
-  console.log('[webhook] v4 sha1   sign(ts)         :', v4);
-  console.log('[webhook] v5 sha1   sign(hook_id)    :', v5);
-
-  // ── Use v1: SHA-256, sign their timestamp ─────────────────────────────────
-  const response = v1;
+  // ── Theory: respond by echoing their t and v1 (proving we received it) ────
+  const response = `${theirTs}|${theirHash}`;
   console.log('[webhook] responding:', response);
 
   // ── Store real survey responses ───────────────────────────────────────────
