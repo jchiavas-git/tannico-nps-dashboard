@@ -2,8 +2,8 @@
  * Tannico NPS — Vercel Webhook Endpoint
  * POST /api/webhook  ← paste this URL into OmniPulse → Settings → Webhook
  *
- * Environment variables (set in Vercel dashboard → Settings → Environment Variables):
- *   OMNICONVERT_SECRET   the Webhook Secret shown in OmniPulse webhook settings (NOT the API key)
+ * Environment variables:
+ *   OMNICONVERT_SECRET   Webhook Secret from OmniPulse webhook settings
  *   KV_REST_API_URL      auto-filled when you link a Vercel KV database
  *   KV_REST_API_TOKEN    auto-filled when you link a Vercel KV database
  */
@@ -13,12 +13,10 @@ import { kv }  from '@vercel/kv';
 
 export const config = { api: { bodyParser: true } };
 
-// ─── HMAC helper ──────────────────────────────────────────────────────────────
-function hmac(message, key) {
-  return crypto.createHmac('sha1', key).update(message).digest('hex');
+function hmac(algo, message, key) {
+  return crypto.createHmac(algo, key).update(message).digest('hex');
 }
 
-// ─── Main handler ─────────────────────────────────────────────────────────────
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin',  '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
@@ -28,35 +26,36 @@ export default async function handler(req, res) {
   const body   = req.body || {};
   const hookId = body._hook_id || '';
   const secret = process.env.OMNICONVERT_SECRET || '';
-  const ts     = String(Math.floor(Date.now() / 1000));
 
-  // ── Log EVERYTHING so we can diagnose ────────────────────────────────────
-  console.log('[webhook] === HEADERS ===');
-  console.log(JSON.stringify(req.headers));
-  console.log('[webhook] === BODY ===');
-  console.log(JSON.stringify(body));
-  console.log('[webhook] secret len:', secret.length, '| first4:', secret.slice(0, 4));
+  // ── Extract OmniPulse's own timestamp from x-reveal-signature header ──────
+  // Header format: "t=1234567890,v1=<sha256_hmac>"
+  const revealSig = req.headers['x-reveal-signature'] || '';
+  const tMatch    = revealSig.match(/t=(\d+)/);
+  const theirTs   = tMatch ? tMatch[1] : String(Math.floor(Date.now() / 1000));
 
-  // ── Try base64-decoded secret as key ─────────────────────────────────────
-  let secretB64 = secret;
-  try { secretB64 = Buffer.from(secret, 'base64'); } catch(_) {}
+  console.log('[webhook] x-reveal-signature:', revealSig);
+  console.log('[webhook] using timestamp    :', theirTs);
+  console.log('[webhook] hook_id            :', hookId);
+  console.log('[webhook] secret len         :', secret.length);
 
-  // ── All variants ─────────────────────────────────────────────────────────
-  const v1 = `${ts}|${hmac(ts,           secret)}`;
-  const v2 = `${ts}|${hmac(hookId,       secret)}`;
-  const v5 = `${ts}|${hmac(ts,           secretB64)}`;
-  const v6 = `${ts}|${hmac(hookId,       secretB64)}`;
+  // ── Try all variants using OmniPulse's timestamp ─────────────────────────
+  const v1 = `${theirTs}|${hmac('sha256', theirTs,           secret)}`;  // sha256 sign(ts)
+  const v2 = `${theirTs}|${hmac('sha256', hookId,            secret)}`;  // sha256 sign(hook_id)
+  const v3 = `${theirTs}|${hmac('sha256', theirTs + hookId,  secret)}`;  // sha256 sign(ts+id)
+  const v4 = `${theirTs}|${hmac('sha1',   theirTs,           secret)}`;  // sha1   sign(ts)
+  const v5 = `${theirTs}|${hmac('sha1',   hookId,            secret)}`;  // sha1   sign(hook_id)
 
-  console.log('[webhook] v1 raw sign(ts)      :', v1);
-  console.log('[webhook] v2 raw sign(hook_id) :', v2);
-  console.log('[webhook] v5 b64 sign(ts)      :', v5);
-  console.log('[webhook] v6 b64 sign(hook_id) :', v6);
+  console.log('[webhook] v1 sha256 sign(ts)         :', v1);
+  console.log('[webhook] v2 sha256 sign(hook_id)    :', v2);
+  console.log('[webhook] v3 sha256 sign(ts+hook_id) :', v3);
+  console.log('[webhook] v4 sha1   sign(ts)         :', v4);
+  console.log('[webhook] v5 sha1   sign(hook_id)    :', v5);
 
-  // ── Respond with v1 (sign timestamp, raw key) ────────────────────────────
+  // ── Use v1: SHA-256, sign their timestamp ─────────────────────────────────
   const response = v1;
   console.log('[webhook] responding:', response);
 
-  // ── Store real survey responses (not pings) ───────────────────────────────
+  // ── Store real survey responses ───────────────────────────────────────────
   const payload = body._payload || {};
   const isReal  = payload.customer_eid && payload.customer_eid !== '';
   if (isReal) {
