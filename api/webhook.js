@@ -11,10 +11,16 @@
 import crypto from 'crypto';
 import { kv }  from '@vercel/kv';
 
-export const config = { api: { bodyParser: true } };
+// Disable body parser — we need the raw body string for HMAC
+export const config = { api: { bodyParser: false } };
 
-function hmac(algo, message, key) {
-  return crypto.createHmac(algo, key).update(message).digest('hex');
+async function readRawBody(req) {
+  return new Promise((resolve, reject) => {
+    let data = '';
+    req.on('data', chunk => { data += chunk; });
+    req.on('end',  () => resolve(data));
+    req.on('error', reject);
+  });
 }
 
 export default async function handler(req, res) {
@@ -23,25 +29,27 @@ export default async function handler(req, res) {
   if (req.method === 'OPTIONS') return res.status(200).end();
   if (req.method !== 'POST')   return res.status(405).end('Method not allowed');
 
-  const body   = req.body || {};
-  const hookId = body._hook_id || '';
-  const secret = process.env.OMNICONVERT_SECRET || '';
+  const rawBody = await readRawBody(req);
+  const body    = JSON.parse(rawBody || '{}');
+  const hookId  = body._hook_id || '';
+  const secret  = process.env.OMNICONVERT_SECRET || '';
 
-  // ── Parse OmniPulse's x-reveal-signature header ──────────────────────────
-  // Header format: "t=1234567890,v1=<sha256_hmac_of_request>"
+  // ── Parse x-reveal-signature: t=<ts>,v1=<sha256> ─────────────────────────
   const revealSig = req.headers['x-reveal-signature'] || '';
   const tMatch    = revealSig.match(/t=(\d+)/);
   const v1Match   = revealSig.match(/v1=([a-f0-9]+)/);
   const theirTs   = tMatch  ? tMatch[1]  : String(Math.floor(Date.now() / 1000));
   const theirHash = v1Match ? v1Match[1] : '';
 
-  console.log('[webhook] x-reveal-signature:', revealSig);
-  console.log('[webhook] their ts  :', theirTs);
-  console.log('[webhook] their hash:', theirHash);
-  console.log('[webhook] hook_id   :', hookId);
+  // ── Stripe-style: HMAC-SHA256(secret, t + "." + rawBody) ─────────────────
+  const stripeMsg  = `${theirTs}.${rawBody}`;
+  const stripeHash = crypto.createHmac('sha256', secret).update(stripeMsg).digest('hex');
+  const response   = `${theirTs}|${stripeHash}`;
 
-  // ── Theory: respond by echoing their t and v1 (proving we received it) ────
-  const response = `${theirTs}|${theirHash}`;
+  console.log('[webhook] their sig :', revealSig);
+  console.log('[webhook] their hash:', theirHash);
+  console.log('[webhook] our  hash :', stripeHash);
+  console.log('[webhook] match?    :', theirHash === stripeHash);
   console.log('[webhook] responding:', response);
 
   // ── Store real survey responses ───────────────────────────────────────────
