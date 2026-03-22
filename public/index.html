@@ -23,11 +23,46 @@
     header h1 { font-size: 20px; font-weight: 700; }
     header p  { font-size: 13px; color: rgba(255,255,255,0.5); margin-top: 2px; }
 
+    /* ── Upload zone ─────────────────────────────────────── */
+    #upload-zone {
+      margin: 32px 40px; border: 2.5px dashed #B0BDE8; border-radius: 14px;
+      background: #fff; padding: 48px 40px; text-align: center; cursor: pointer;
+      transition: border-color 0.2s, background 0.2s;
+    }
+    #upload-zone.drag-over { border-color: #001B67; background: #EEF0F7; }
+    #upload-zone.has-data  { display: none; }
+    .upload-icon { font-size: 40px; margin-bottom: 14px; }
+    .upload-title { font-size: 18px; font-weight: 700; color: #001B67; margin-bottom: 6px; }
+    .upload-sub   { font-size: 13px; color: #888; margin-bottom: 22px; }
+    .upload-btn {
+      display: inline-block; background: #001B67; color: #fff; border: none;
+      border-radius: 8px; padding: 11px 28px; font-size: 14px; font-weight: 600;
+      cursor: pointer; transition: background 0.15s;
+    }
+    .upload-btn:hover { background: #0028A0; }
+    .upload-hint { margin-top: 14px; font-size: 11px; color: #aaa; }
+    #file-input { display: none; }
+
+    /* ── File info bar ───────────────────────────────────── */
+    #file-bar {
+      display: none; background: #fff; border-bottom: 1px solid #E0E6F0;
+      padding: 10px 40px; align-items: center; gap: 14px; flex-wrap: wrap;
+    }
+    #file-bar.show { display: flex; }
+    .file-badge { background: #E8ECF7; color: #001B67; border-radius: 20px; padding: 4px 14px; font-size: 12px; font-weight: 600; }
+    .change-btn {
+      margin-left: auto; padding: 6px 16px; background: transparent; border: 1.5px solid #D0D8EE;
+      border-radius: 7px; font-size: 12px; font-weight: 600; color: #555; cursor: pointer;
+      transition: all 0.15s;
+    }
+    .change-btn:hover { border-color: #001B67; color: #001B67; }
+
     /* ── Controls bar ───────────────────────────────────── */
     .controls {
       background: #fff; border-bottom: 1px solid #E0E6F0; padding: 14px 40px;
-      display: flex; align-items: center; gap: 20px; flex-wrap: wrap;
+      display: none; align-items: center; gap: 20px; flex-wrap: wrap;
     }
+    .controls.show { display: flex; }
     .ctrl-group { display: flex; align-items: center; gap: 10px; }
     .ctrl-label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: #81152F; white-space: nowrap; }
     .date-input {
@@ -41,22 +76,11 @@
       transition: all 0.15s;
     }
     .preset-btn:hover, .preset-btn.active { background: #001B67; color: #fff; border-color: #001B67; }
-    .refresh-btn {
-      margin-left: auto; padding: 7px 18px; background: #81152F; color: #fff;
-      border: none; border-radius: 7px; font-size: 13px; font-weight: 600; cursor: pointer;
-      display: flex; align-items: center; gap: 7px; transition: background 0.15s;
-    }
-    .refresh-btn:hover { background: #A01A3B; }
-    .refresh-btn svg { animation: none; }
-    .refresh-btn.loading svg { animation: spin 0.8s linear infinite; }
-    @keyframes spin { to { transform: rotate(360deg); } }
-    .status-dot { width: 8px; height: 8px; border-radius: 50%; background: #ccc; }
-    .status-dot.ok  { background: #1A6B3C; }
-    .status-dot.err { background: #81152F; }
-    .status-text { font-size: 11px; color: #888; white-space: nowrap; }
+    .status-text { font-size: 11px; color: #aaa; margin-left: auto; }
 
     /* ── Main ───────────────────────────────────────────── */
-    main { padding: 28px 40px; max-width: 1400px; margin: 0 auto; }
+    main { padding: 28px 40px; max-width: 1400px; margin: 0 auto; display: none; }
+    main.show { display: block; }
     .section-title {
       font-size: 11px; font-weight: 700; letter-spacing: 1.6px; text-transform: uppercase;
       color: #81152F; margin-bottom: 14px; padding-left: 10px; border-left: 3px solid #81152F;
@@ -80,7 +104,7 @@
     .kpi-pct { display: inline-block; margin-top: 7px; padding: 3px 10px; border-radius: 20px; font-size: 12px; font-weight: 600; }
     .promoter .kpi-value { color: #1A6B3C; } .promoter .kpi-pct { background: #E5F5EC; color: #1A6B3C; }
     .passive  .kpi-value { color: #B36200; } .passive  .kpi-pct { background: #FEF3E2; color: #B36200; }
-    .detractor.kpi-value { color: #81152F; } .detractor.kpi-pct { background: #F9E5EA; color: #81152F; }
+    .detractor .kpi-value { color: #81152F; } .detractor .kpi-pct { background: #F9E5EA; color: #81152F; }
     .total    .kpi-value { color: #001B67; } .total    .kpi-pct { background: #E8ECF7; color: #001B67; }
 
     /* ── Cards & charts ─────────────────────────────────── */
@@ -99,7 +123,7 @@
     .stat-bar-pct   { width: 38px; text-align: right; color: #888; font-size: 12px; }
     .dist-row { display: flex; align-items: flex-end; gap: 5px; height: 90px; margin-top: 10px; }
     .dist-col { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 3px; }
-    .dist-bar { width: 100%; border-radius: 3px 3px 0 0; transition: height 0.4s ease; }
+    .dist-bar { width: 100%; border-radius: 3px 3px 0 0; }
     .dist-label { font-size: 11px; font-weight: 700; }
     .legend { display: flex; gap: 14px; margin-top: 12px; flex-wrap: wrap; }
     .legend-item { display: flex; align-items: center; gap: 6px; font-size: 12px; color: #444; }
@@ -110,18 +134,15 @@
     .tag .tag-count { background: #001B67; color: #fff; border-radius: 20px; font-size: 11px; font-weight: 700; padding: 1px 7px; min-width: 22px; text-align: center; }
     .response-list { display: flex; flex-direction: column; gap: 9px; margin-top: 6px; max-height: 340px; overflow-y: auto; }
     .response-item { border-left: 3px solid #001B67; padding: 9px 13px; background: #F7F8FC; border-radius: 0 8px 8px 0; font-size: 13px; color: #1A1A2E; line-height: 1.5; }
-    .response-meta { font-size: 11px; color: #81152F; font-weight: 600; margin-bottom: 3px; letter-spacing: 0.5px; }
+    .response-meta { font-size: 11px; color: #81152F; font-weight: 600; margin-bottom: 3px; }
     .open-label { font-size: 12px; font-weight: 700; color: #001B67; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.8px; }
     .empty-state { text-align: center; padding: 28px 0; color: #aaa; font-size: 13px; font-style: italic; }
-
-    /* ── No-data banner ─────────────────────────────────── */
     .no-data-banner {
       background: #FEF3E2; border: 1.5px solid #F0A500; border-radius: 10px;
       padding: 14px 20px; font-size: 13px; color: #7A4800; margin-bottom: 20px;
       display: none; align-items: center; gap: 10px;
     }
     .no-data-banner.show { display: flex; }
-
     footer { text-align: center; padding: 20px 40px; font-size: 12px; color: #9AAAD4; }
   </style>
 </head>
@@ -133,18 +154,31 @@
   <div class="brand">
     <div class="logo-box">TANNICO</div>
     <div>
-      <h1>NPS Dashboard <span style="font-size:13px;font-weight:400;color:rgba(255,255,255,0.4)">· Live</span></h1>
-      <p>Sondaggio post-acquisto · OmniPulse + Vercel KV</p>
+      <h1>NPS Dashboard</h1>
+      <p>Sondaggio post-acquisto · OmniPulse</p>
     </div>
-  </div>
-  <div style="display:flex;align-items:center;gap:14px;">
-    <div class="status-dot" id="status-dot"></div>
-    <span class="status-text" id="status-text">Caricamento...</span>
   </div>
 </header>
 
+<!-- ── UPLOAD ZONE ─────────────────────────────────────────── -->
+<div id="upload-zone">
+  <div class="upload-icon">📊</div>
+  <div class="upload-title">Carica l'export CSV da OmniPulse</div>
+  <div class="upload-sub">Esporta il file da OmniPulse → NPS → Export e trascinalo qui</div>
+  <label class="upload-btn" for="file-input">Seleziona file CSV</label>
+  <input type="file" id="file-input" accept=".csv">
+  <div class="upload-hint">Il file viene letto localmente nel browser — nessun dato viene inviato altrove.</div>
+</div>
+
+<!-- ── FILE BAR ────────────────────────────────────────────── -->
+<div id="file-bar">
+  <span class="file-badge" id="file-name">—</span>
+  <span id="file-stats" style="font-size:12px;color:#888"></span>
+  <button class="change-btn" onclick="resetUpload()">↑ Cambia file</button>
+</div>
+
 <!-- ── CONTROLS ────────────────────────────────────────────── -->
-<div class="controls">
+<div class="controls" id="controls">
   <div class="ctrl-group">
     <span class="ctrl-label">Periodo</span>
     <input type="text" id="date-from" class="date-input" placeholder="Data inizio" readonly>
@@ -155,19 +189,15 @@
     <button class="preset-btn" onclick="setPreset(7)">7 giorni</button>
     <button class="preset-btn" onclick="setPreset(30)">30 giorni</button>
     <button class="preset-btn" onclick="setPreset(90)">90 giorni</button>
-    <button class="preset-btn" onclick="setPreset(0)">Tutto</button>
+    <button class="preset-btn active" onclick="setPreset(0)">Tutto</button>
   </div>
-  <button class="refresh-btn" id="refresh-btn" onclick="loadData()">
-    <svg id="spin-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
-    Aggiorna
-  </button>
-  <span class="status-text" id="last-updated" style="font-size:11px;color:#aaa"></span>
+  <span class="status-text" id="status-text"></span>
 </div>
 
 <!-- ── MAIN ────────────────────────────────────────────────── -->
-<main>
+<main id="main">
   <div class="no-data-banner" id="no-data-banner">
-    ⚠ Nessuna risposta nel periodo selezionato. Prova un intervallo di date più ampio o verifica che il webhook abbia ricevuto dati.
+    ⚠ Nessuna risposta nel periodo selezionato.
   </div>
 
   <div class="section-title" style="margin-top:0">Panoramica NPS</div>
@@ -176,7 +206,11 @@
       <div class="label">NPS Score</div>
       <div class="score" id="k-nps">—</div>
       <div class="sublabel">Net Promoter Score</div>
-      <div class="nps-bar"><div class="seg" id="bar-p" style="background:#1A6B3C"></div><div class="seg" id="bar-pa" style="background:#B36200"></div><div class="seg" id="bar-d" style="background:#81152F"></div></div>
+      <div class="nps-bar">
+        <div class="seg" id="bar-p"  style="background:#1A6B3C"></div>
+        <div class="seg" id="bar-pa" style="background:#B36200"></div>
+        <div class="seg" id="bar-d"  style="background:#81152F"></div>
+      </div>
     </div>
     <div class="kpi-card promoter">
       <div class="kpi-label">Promotori</div>
@@ -268,19 +302,37 @@
     </div>
   </div>
 </main>
-<footer id="footer-text">Tannico NPS Dashboard · Live via Vercel KV</footer>
+<footer id="footer-text">Tannico NPS Dashboard · OmniPulse</footer>
 
 <script>
 // ════════════════════════════════════════════════════════════
-// FIELD DEFINITIONS (matching webhook.js record keys)
+// CSV COLUMN INDICES (0-based, from OmniPulse export)
 // ════════════════════════════════════════════════════════════
+const COL = {
+  timestamp:    7,   // Responded At
+  nps:          8,   // NPS Score
+  q_consiglio:  14,  // Probabilità di consigliare
+  q_insoddf:    15,  // Cosa non ha soddisfatto
+  q_migliorare: 16,  // Su cosa possiamo lavorare (multi-select |)
+  q_riacquisto: 17,  // Probabilità di riacquisto
+  q_dove:       18,  // Dove acquisterai
+  q_prodotti:   19,  // Prodotti/cantine non trovate
+  q_giudizio:   20,  // Cosa ha inciso sul giudizio (multi-select |)
+  a_svc:        21,  // Servizio clienti
+  a_sito:       22,  // Esperienza sito/app
+  a_prezzi:     23,  // Prezzi e offerte
+  a_spedizione: 24,  // Tempi di spedizione
+  a_pagamento:  25,  // Metodi di pagamento
+  a_vini:       26,  // Selezione dei vini
+};
+
 const ASPECT_DEFS = [
-  { label: 'Metodi di pagamento', field: 'a_pagamento'  },
-  { label: 'Tempi di spedizione', field: 'a_spedizione' },
-  { label: 'Selezione dei vini',  field: 'a_vini'       },
-  { label: 'Esperienza sito/app', field: 'a_sito'       },
-  { label: 'Servizio clienti *',  field: 'a_svc'        },
-  { label: 'Prezzi e offerte',    field: 'a_prezzi'     },
+  { label: 'Metodi di pagamento', col: COL.a_pagamento  },
+  { label: 'Tempi di spedizione', col: COL.a_spedizione },
+  { label: 'Selezione dei vini',  col: COL.a_vini       },
+  { label: 'Esperienza sito/app', col: COL.a_sito       },
+  { label: 'Servizio clienti *',  col: COL.a_svc        },
+  { label: 'Prezzi e offerte',    col: COL.a_prezzi     },
 ];
 const RADAR_ORDER       = ['Tempi di spedizione','Metodi di pagamento','Selezione dei vini','Esperienza sito/app','Servizio clienti *','Prezzi e offerte'];
 const REPURCHASE_ORDER  = ['Molto probabile','Probabile','Non lo so','Poco probabile'];
@@ -289,8 +341,83 @@ const REPURCHASE_COLORS = ['#1A6B3C','#2E9E60','#B36200','#81152F'];
 // ════════════════════════════════════════════════════════════
 // STATE
 // ════════════════════════════════════════════════════════════
-let allRecords = [];   // all records from /api/data (JSON objects)
-let charts     = {};   // Chart.js instances
+let allRows = [];
+let charts  = {};
+
+// ════════════════════════════════════════════════════════════
+// FILE UPLOAD
+// ════════════════════════════════════════════════════════════
+const uploadZone = document.getElementById('upload-zone');
+const fileInput  = document.getElementById('file-input');
+
+uploadZone.addEventListener('dragover', e => { e.preventDefault(); uploadZone.classList.add('drag-over'); });
+uploadZone.addEventListener('dragleave', () => uploadZone.classList.remove('drag-over'));
+uploadZone.addEventListener('drop', e => {
+  e.preventDefault();
+  uploadZone.classList.remove('drag-over');
+  const file = e.dataTransfer.files[0];
+  if (file) handleFile(file);
+});
+fileInput.addEventListener('change', e => { if (e.target.files[0]) handleFile(e.target.files[0]); });
+
+function handleFile(file) {
+  const reader = new FileReader();
+  reader.onload = e => {
+    const text = e.target.result;
+    allRows = parseCSV(text);
+    document.getElementById('file-name').textContent  = file.name;
+    document.getElementById('file-stats').textContent = `${allRows.length} risposte caricate`;
+    uploadZone.classList.add('has-data');
+    document.getElementById('file-bar').classList.add('show');
+    document.getElementById('controls').classList.add('show');
+    document.getElementById('main').classList.add('show');
+    applyFiltersAndRender();
+  };
+  reader.readAsText(file, 'UTF-8');
+}
+
+function resetUpload() {
+  allRows = [];
+  fileInput.value = '';
+  uploadZone.classList.remove('has-data');
+  document.getElementById('file-bar').classList.remove('show');
+  document.getElementById('controls').classList.remove('show');
+  document.getElementById('main').classList.remove('show');
+  Object.values(charts).forEach(c => c.destroy());
+  charts = {};
+}
+
+// ════════════════════════════════════════════════════════════
+// CSV PARSING
+// ════════════════════════════════════════════════════════════
+function parseCSV(text) {
+  // Normalize line endings
+  const lines = text.replace(/\r\n/g, '\n').replace(/\r/g, '\n').split('\n').filter(l => l.trim());
+  if (lines.length < 2) return [];
+  const rows = [];
+  for (let i = 1; i < lines.length; i++) {
+    rows.push(splitCSVLine(lines[i]));
+  }
+  return rows;
+}
+
+function splitCSVLine(line) {
+  const result = []; let cur = ''; let inQ = false;
+  for (let i = 0; i < line.length; i++) {
+    const c = line[i];
+    if (c === '"') {
+      if (inQ && line[i+1] === '"') { cur += '"'; i++; }
+      else { inQ = !inQ; }
+    } else if (c === ',' && !inQ) {
+      result.push(cur.trim());
+      cur = '';
+    } else {
+      cur += c;
+    }
+  }
+  result.push(cur.trim());
+  return result;
+}
 
 // ════════════════════════════════════════════════════════════
 // DATE PICKERS
@@ -317,65 +444,31 @@ function setPreset(days) {
 }
 
 // ════════════════════════════════════════════════════════════
-// DATA LOADING — fetches from /api/data (same-origin JSON)
-// ════════════════════════════════════════════════════════════
-async function loadData() {
-  const btn = document.getElementById('refresh-btn');
-  btn.classList.add('loading');
-  setStatus('loading');
-
-  try {
-    const res = await fetch('/api/data?limit=5000&t=' + Date.now());
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const json = await res.json();
-    allRecords = json.records || [];
-    setStatus('ok', `${allRecords.length} risposte · aggiornato ${new Date().toLocaleTimeString('it-IT')}`);
-    document.getElementById('last-updated').textContent = `Ultimo aggiornamento: ${new Date().toLocaleTimeString('it-IT')}`;
-    applyFiltersAndRender();
-  } catch (err) {
-    setStatus('err', 'Errore: ' + err.message);
-    console.error(err);
-  } finally {
-    btn.classList.remove('loading');
-  }
-}
-
-function setStatus(state, msg) {
-  const dot  = document.getElementById('status-dot');
-  const text = document.getElementById('status-text');
-  dot.className    = 'status-dot ' + (state === 'ok' ? 'ok' : state === 'err' ? 'err' : '');
-  text.textContent = msg || (state === 'loading' ? 'Caricamento...' : state === 'ok' ? 'Connesso' : 'Errore');
-}
-
-// ════════════════════════════════════════════════════════════
-// FILTERING (client-side, same logic as online version)
+// FILTERING
 // ════════════════════════════════════════════════════════════
 function applyFiltersAndRender() {
   const fromEl = document.getElementById('date-from').value;
   const toEl   = document.getElementById('date-to').value;
 
   let from = null, to = null;
-  if (fromEl) {
-    const [d,m,y] = fromEl.split('/');
-    from = new Date(+y, +m-1, +d);
-    from.setHours(0,0,0,0);
-  }
-  if (toEl) {
-    const [d,m,y] = toEl.split('/');
-    to = new Date(+y, +m-1, +d);
-    to.setHours(23,59,59,999);
-  }
+  if (fromEl) { const [d,m,y] = fromEl.split('/'); from = new Date(+y,+m-1,+d); from.setHours(0,0,0,0); }
+  if (toEl)   { const [d,m,y] = toEl.split('/');   to   = new Date(+y,+m-1,+d); to.setHours(23,59,59,999); }
 
-  const filtered = allRecords.filter(r => {
+  const filtered = allRows.filter(row => {
     if (!from && !to) return true;
-    const ts = r.ts;
-    if (!ts) return false;
+    const ts = row[COL.timestamp];
+    if (!ts || ts.trim() === '') return false;
     const d = new Date(ts);
-    if (isNaN(d)) return false;
+    if (isNaN(d)) return true;
     if (from && d < from) return false;
     if (to   && d > to  ) return false;
     return true;
   });
+
+  const fromEl2 = document.getElementById('date-from').value;
+  const toEl2   = document.getElementById('date-to').value;
+  const periodStr = fromEl2 && toEl2 ? `${fromEl2} → ${toEl2}` : 'Tutto il periodo';
+  document.getElementById('status-text').textContent = `${filtered.length} risposte · ${periodStr}`;
 
   renderDashboard(filtered);
 }
@@ -384,21 +477,20 @@ function applyFiltersAndRender() {
 // PARSING HELPERS
 // ════════════════════════════════════════════════════════════
 function parseRating(v) {
-  if (v === null || v === undefined || v === '') return null;
-  if (typeof v === 'number') return v;
-  const s = String(v).trim().replace('5 = alto','5').replace('1 = basso','1');
+  if (!v || v.trim() === '' || v.trim() === ' ') return null;
+  const s = v.trim().replace('5 = alto','5').replace('1 = basso','1');
   const n = parseFloat(s);
   return isNaN(n) ? null : n;
 }
 
-function parseMultiselect(field, rows, minCount = 2) {
+function parseMultiselect(col, rows, minCount = 1) {
   const counts = {};
-  rows.forEach(r => {
-    const v = (r[field] || '').trim();
+  rows.forEach(row => {
+    const v = (row[col] || '').trim();
     if (!v || v === ' ') return;
     v.split('|').forEach(p => {
       p = p.trim();
-      if (p && p.length < 80) counts[p] = (counts[p] || 0) + 1;
+      if (p && p.length < 100) counts[p] = (counts[p] || 0) + 1;
     });
   });
   return Object.entries(counts).filter(([,c]) => c >= minCount).sort((a,b) => b[1] - a[1]);
@@ -411,10 +503,7 @@ function renderDashboard(rows) {
   const banner = document.getElementById('no-data-banner');
 
   // ── NPS ────────────────────────────────────────────
-  const npsScores  = rows.map(r => {
-    const n = parseInt(r.nps);
-    return isNaN(n) ? NaN : n;
-  }).filter(n => !isNaN(n));
+  const npsScores  = rows.map(r => parseInt(r[COL.nps])).filter(n => !isNaN(n));
   const total      = npsScores.length;
   banner.classList.toggle('show', total === 0);
 
@@ -440,24 +529,21 @@ function renderDashboard(rows) {
 
   // ── Score distribution ─────────────────────────────
   const distColors = ['#81152F','#81152F','#81152F','#81152F','#81152F','#81152F','#81152F','#B36200','#B36200','#1A6B3C','#1A6B3C'];
-  const dist  = Array.from({length: 11}, (_, i) => npsScores.filter(n => n === i).length);
+  const dist  = Array.from({length:11}, (_,i) => npsScores.filter(n => n === i).length);
   const mx    = Math.max(...dist, 1);
   const distEl = document.getElementById('distRow');
   distEl.innerHTML = '';
   dist.forEach((count, i) => {
     const h = Math.max(3, Math.round(count / mx * 82));
-    distEl.innerHTML += `<div class="dist-col"><div style="font-size:10px;color:#888;height:14px;display:flex;align-items:flex-end">${count || ''}</div><div class="dist-bar" style="height:${h}px;background:${distColors[i]};opacity:${count === 0 ? 0.1 : 1}"></div><div class="dist-label" style="color:${distColors[i]}">${i}</div></div>`;
+    distEl.innerHTML += `<div class="dist-col"><div style="font-size:10px;color:#888;height:14px;display:flex;align-items:flex-end">${count||''}</div><div class="dist-bar" style="height:${h}px;background:${distColors[i]};opacity:${count===0?0.1:1}"></div><div class="dist-label" style="color:${distColors[i]}">${i}</div></div>`;
   });
 
   // ── Repurchase ─────────────────────────────────────
-  const repBars   = document.getElementById('repurchaseBars');
+  const repBars = document.getElementById('repurchaseBars');
   repBars.innerHTML = '';
   const repCounts = {};
-  rows.forEach(r => {
-    const v = (r.q_riacquisto || '').trim();
-    if (v && v !== ' ') repCounts[v] = (repCounts[v] || 0) + 1;
-  });
-  const repTotal = Object.values(repCounts).reduce((a,b) => a + b, 0);
+  rows.forEach(r => { const v=(r[COL.q_riacquisto]||'').trim(); if(v&&v!==' ') repCounts[v]=(repCounts[v]||0)+1; });
+  const repTotal = Object.values(repCounts).reduce((a,b)=>a+b,0);
   REPURCHASE_ORDER.forEach((label, i) => {
     const count = repCounts[label] || 0;
     const pct   = repTotal > 0 ? Math.round(count / repTotal * 100) : 0;
@@ -466,48 +552,48 @@ function renderDashboard(rows) {
 
   // ── Aspects ────────────────────────────────────────
   const aspects = ASPECT_DEFS.map(def => {
-    const vals = rows.map(r => parseRating(r[def.field])).filter(v => v !== null);
-    const avg  = vals.length > 0 ? (vals.reduce((a,b) => a + b, 0) / vals.length).toFixed(2) : 0;
+    const vals = rows.map(r => parseRating(r[def.col])).filter(v => v !== null);
+    const avg  = vals.length > 0 ? (vals.reduce((a,b)=>a+b,0)/vals.length).toFixed(2) : 0;
     return { label: def.label, avg: parseFloat(avg), n: vals.length };
   }).sort((a,b) => b.avg - a.avg);
 
-  updateBarChart('aspectBar', aspects.map(a => a.label), aspects.map(a => a.avg),
-    aspects.map(a => a.avg >= 4.4 ? '#001B67' : a.avg >= 4.0 ? '#2D5FC4' : '#81152F'),
+  updateBarChart('aspectBar', aspects.map(a=>a.label), aspects.map(a=>a.avg),
+    aspects.map(a => a.avg>=4.4?'#001B67':a.avg>=4.0?'#2D5FC4':'#81152F'),
     ctx => ` Media: ${ctx.parsed.x.toFixed(2)} / 5  (n=${aspects[ctx.dataIndex]?.n})`);
 
-  const radarMap = Object.fromEntries(aspects.map(a => [a.label, a.avg]));
-  updateRadarChart('aspectRadar', RADAR_ORDER, RADAR_ORDER.map(l => radarMap[l] || 0));
+  const radarMap = Object.fromEntries(aspects.map(a=>[a.label,a.avg]));
+  updateRadarChart('aspectRadar', RADAR_ORDER, RADAR_ORDER.map(l=>radarMap[l]||0));
 
   // ── Factors & improvements ─────────────────────────
-  const factors = parseMultiselect('q_giudizio',   rows).slice(0, 6);
-  const improvs = parseMultiselect('q_migliorare', rows).slice(0, 6);
-  updateHBarChart('factorsChart',      factors.map(f => f[0]), factors.map(f => f[1]), ['#001B67','#132E8A','#2040AD','#3355C0','#4D6DD4','#6685E0']);
-  updateHBarChart('improvementsChart', improvs.map(f => f[0]), improvs.map(f => f[1]), ['#81152F','#941E3A','#A62A46','#B83655','#C74268','#D5507A']);
+  const factors = parseMultiselect(COL.q_giudizio,   rows).slice(0,6);
+  const improvs = parseMultiselect(COL.q_migliorare, rows).slice(0,6);
+  updateHBarChart('factorsChart',      factors.map(f=>f[0]), factors.map(f=>f[1]), ['#001B67','#132E8A','#2040AD','#3355C0','#4D6DD4','#6685E0']);
+  updateHBarChart('improvementsChart', improvs.map(f=>f[0]), improvs.map(f=>f[1]), ['#81152F','#941E3A','#A62A46','#B83655','#C74268','#D5507A']);
 
-  // ── Competitors / where else ───────────────────────
+  // ── Where else ─────────────────────────────────────
   const compCounts = {}; const whereElseArr = [];
   rows.forEach(r => {
-    const v = (r.q_dove || '').trim();
-    if (!v || v === ' ') return;
-    whereElseArr.push({ score: parseInt(r.nps), text: v.replace(/\|/g, ' · ') });
-    v.split('|').forEach(p => { p = p.trim(); if (p) compCounts[p] = (compCounts[p] || 0) + 1; });
+    const v = (r[COL.q_dove]||'').trim();
+    if (!v || v===' ') return;
+    whereElseArr.push({ score: parseInt(r[COL.nps]), text: v.replace(/\|/g,' · ') });
+    v.split('|').forEach(p => { p=p.trim(); if(p) compCounts[p]=(compCounts[p]||0)+1; });
   });
-  const compSorted = Object.entries(compCounts).sort((a,b) => b[1] - a[1]);
+  const compSorted = Object.entries(compCounts).sort((a,b)=>b[1]-a[1]);
   const tagEl = document.getElementById('competitorTags');
   tagEl.innerHTML = compSorted.length
-    ? compSorted.map(([n,c]) => `<div class="tag">${n}<span class="tag-count">${c}</span></div>`).join('')
+    ? compSorted.map(([n,c])=>`<div class="tag">${n}<span class="tag-count">${c}</span></div>`).join('')
     : '<div style="font-size:12px;color:#aaa;font-style:italic">Nessun dato nel periodo</div>';
   buildResponseList('whereElseList', whereElseArr);
 
   // ── Cantine ────────────────────────────────────────
   const cantineArr = rows
-    .filter(r => (r.q_prodotti || '').trim() && (r.q_prodotti || '').trim() !== ' ')
-    .map(r => ({ score: parseInt(r.nps), text: (r.q_prodotti || '').trim() }));
+    .filter(r=>(r[COL.q_prodotti]||'').trim()&&(r[COL.q_prodotti]||'').trim()!==' ')
+    .map(r=>({ score: parseInt(r[COL.nps]), text: (r[COL.q_prodotti]||'').trim() }));
   buildResponseList('cantineList', cantineArr);
 
   // Footer
-  const fromEl    = document.getElementById('date-from').value;
-  const toEl      = document.getElementById('date-to').value;
+  const fromEl = document.getElementById('date-from').value;
+  const toEl   = document.getElementById('date-to').value;
   const periodStr = fromEl && toEl ? `${fromEl} → ${toEl}` : 'Tutto il periodo';
   document.getElementById('footer-text').textContent = `Tannico NPS Dashboard · ${total} risposte · ${periodStr}`;
 }
@@ -536,11 +622,11 @@ function updateBarChart(id, labels, data, colors, tooltipCb) {
     options: {
       indexAxis: 'y', responsive: true, maintainAspectRatio: false,
       scales: {
-        x: { min: 0, max: 5, grid: { color: 'rgba(0,27,103,0.06)' }, ticks: { font: { size: 11 }, stepSize: 1 } },
-        y: { grid: { display: false }, ticks: { font: { size: 12 }, color: '#001B67' } }
+        x: { min:0, max:5, grid:{color:'rgba(0,27,103,0.06)'}, ticks:{font:{size:11},stepSize:1} },
+        y: { grid:{display:false}, ticks:{font:{size:12},color:'#001B67'} }
       },
-      plugins: { legend: { display: false }, tooltip: { callbacks: { label: tooltipCb || (ctx => ctx.parsed.x) } } },
-      animation: { duration: 400 }
+      plugins: { legend:{display:false}, tooltip:{callbacks:{label: tooltipCb||(ctx=>ctx.parsed.x)}} },
+      animation: { duration:400 }
     },
     plugins: [valueLabelPlugin]
   });
@@ -554,11 +640,11 @@ function updateHBarChart(id, labels, data, colors) {
     options: {
       indexAxis: 'y', responsive: true, maintainAspectRatio: false,
       scales: {
-        x: { grid: { color: 'rgba(0,27,103,0.06)' }, ticks: { font: { size: 11 } } },
-        y: { grid: { display: false }, ticks: { font: { size: 12 }, color: '#001B67' } }
+        x: { grid:{color:'rgba(0,27,103,0.06)'}, ticks:{font:{size:11}} },
+        y: { grid:{display:false}, ticks:{font:{size:12},color:'#001B67'} }
       },
-      plugins: { legend: { display: false } },
-      animation: { duration: 400 }
+      plugins: { legend:{display:false} },
+      animation: { duration:400 }
     },
     plugins: [valueLabelPlugin]
   });
@@ -568,11 +654,11 @@ function updateRadarChart(id, labels, data) {
   if (charts[id]) charts[id].destroy();
   charts[id] = new Chart(document.getElementById(id), {
     type: 'radar',
-    data: { labels, datasets: [{ data, backgroundColor: 'rgba(0,27,103,0.10)', borderColor: '#001B67', borderWidth: 2, pointBackgroundColor: '#81152F', pointBorderColor: '#fff', pointBorderWidth: 2, pointRadius: 5 }] },
+    data: { labels, datasets: [{ data, backgroundColor:'rgba(0,27,103,0.10)', borderColor:'#001B67', borderWidth:2, pointBackgroundColor:'#81152F', pointBorderColor:'#fff', pointBorderWidth:2, pointRadius:5 }] },
     options: {
-      responsive: true, maintainAspectRatio: false,
-      scales: { r: { min: 0, max: 5, ticks: { stepSize: 1, font: { size: 10 }, backdropColor: 'transparent', color: '#888' }, grid: { color: 'rgba(0,27,103,0.09)' }, angleLines: { color: 'rgba(0,27,103,0.1)' }, pointLabels: { font: { size: 11 }, color: '#001B67' } } },
-      plugins: { legend: { display: false }, tooltip: { callbacks: { label: ctx => ` ${ctx.parsed.r.toFixed(2)} / 5` } } }
+      responsive:true, maintainAspectRatio:false,
+      scales: { r: { min:0, max:5, ticks:{stepSize:1,font:{size:10},backdropColor:'transparent',color:'#888'}, grid:{color:'rgba(0,27,103,0.09)'}, angleLines:{color:'rgba(0,27,103,0.1)'}, pointLabels:{font:{size:11},color:'#001B67'} } },
+      plugins: { legend:{display:false}, tooltip:{callbacks:{label:ctx=>` ${ctx.parsed.r.toFixed(2)} / 5`}} }
     }
   });
 }
@@ -580,7 +666,7 @@ function updateRadarChart(id, labels, data) {
 function buildResponseList(id, items) {
   const el = document.getElementById(id);
   if (!items.length) { el.innerHTML = '<div class="empty-state">Nessuna risposta nel periodo selezionato</div>'; return; }
-  el.innerHTML = items.map(r => `<div class="response-item"><div class="response-meta">NPS ${isNaN(r.score) ? '—' : r.score}</div>${r.text}</div>`).join('');
+  el.innerHTML = items.map(r => `<div class="response-item"><div class="response-meta">NPS ${isNaN(r.score)?'—':r.score}</div>${r.text}</div>`).join('');
 }
 
 // ════════════════════════════════════════════════════════════
@@ -588,7 +674,6 @@ function buildResponseList(id, items) {
 // ════════════════════════════════════════════════════════════
 document.addEventListener('DOMContentLoaded', () => {
   initDatePickers();
-  loadData();
 });
 </script>
 </body>
