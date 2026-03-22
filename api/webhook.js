@@ -31,22 +31,34 @@ export default async function handler(req, res) {
   const secret = process.env.OMNICONVERT_SECRET || '';
   const ts     = String(Math.floor(Date.now() / 1000));
 
-  // ── Log all variants so we can identify the correct one from Vercel logs ──
-  const v1 = `${ts}|${hmac(ts,     secret)}`;                        // sign timestamp
-  const v2 = `${ts}|${hmac(hookId, secret)}`;                        // sign hook_id
-  const v3 = `${ts}|${hmac(ts + hookId, secret)}`;                   // sign ts+hook_id
-  const v4 = `${ts}|${hmac(hookId + ts, secret)}`;                   // sign hook_id+ts
+  // ── Try base64-decoded secret as key ─────────────────────────────────────────
+  let secretB64 = secret;
+  try { secretB64 = Buffer.from(secret, 'base64'); } catch(_) {}
+
+  // ── Log all variants (raw key + base64-decoded key) ───────────────────────
+  const v1 = `${ts}|${hmac(ts,           secret)}`;    // sign ts,     raw key
+  const v2 = `${ts}|${hmac(hookId,       secret)}`;    // sign hook_id, raw key
+  const v3 = `${ts}|${hmac(ts + hookId,  secret)}`;    // sign ts+id,  raw key
+  const v4 = `${ts}|${hmac(hookId + ts,  secret)}`;    // sign id+ts,  raw key
+  const v5 = `${ts}|${hmac(ts,           secretB64)}`; // sign ts,     b64 key
+  const v6 = `${ts}|${hmac(hookId,       secretB64)}`; // sign hook_id, b64 key
+  const v7 = `${ts}|${hmac(ts + hookId,  secretB64)}`; // sign ts+id,  b64 key
+  const v8 = `${ts}|${hmac(hookId + ts,  secretB64)}`; // sign id+ts,  b64 key
 
   console.log('[webhook] hook_id :', hookId);
   console.log('[webhook] secret  :', secret ? `${secret.slice(0,4)}… (len ${secret.length})` : 'NOT SET');
-  console.log('[webhook] v1 sign(ts)          :', v1);
-  console.log('[webhook] v2 sign(hook_id)     :', v2);
-  console.log('[webhook] v3 sign(ts+hook_id)  :', v3);
-  console.log('[webhook] v4 sign(hook_id+ts)  :', v4);
+  console.log('[webhook] v1 raw  sign(ts)         :', v1);
+  console.log('[webhook] v2 raw  sign(hook_id)    :', v2);
+  console.log('[webhook] v3 raw  sign(ts+hook_id) :', v3);
+  console.log('[webhook] v4 raw  sign(hook_id+ts) :', v4);
+  console.log('[webhook] v5 b64  sign(ts)         :', v5);
+  console.log('[webhook] v6 b64  sign(hook_id)    :', v6);
+  console.log('[webhook] v7 b64  sign(ts+hook_id) :', v7);
+  console.log('[webhook] v8 b64  sign(hook_id+ts) :', v8);
 
-  // ── Use v1 (sign timestamp) — most common webhook pattern ──
-  const response = v1;
-  console.log('[webhook] responding with v1   :', response);
+  // ── Use v5 (sign timestamp with base64-decoded key) ───────────────────────
+  const response = v5;
+  console.log('[webhook] responding with v5   :', response);
 
   // ── Store survey response (only real submissions, not pings) ──
   const payload = body._payload || {};
