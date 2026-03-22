@@ -1,0 +1,12 @@
+{
+  "name": "tannico-nps-dashboard",
+  "version": "1.0.0",
+  "description": "Tannico NPS Dashboard — live webhook + dashboard on Vercel",
+  "private": true,
+  "dependencies": {
+    "@vercel/kv": "^1.0.0"
+  },
+  "engines": {
+    "node": "20.x"
+  }
+}

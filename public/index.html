@@ -1,0 +1,595 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Tannico — NPS Dashboard</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+  <script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/it.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Segoe UI', system-ui, sans-serif; background: #F1F3F4; color: #001B67; min-height: 100vh; }
+
+    /* ── Header ─────────────────────────────────────────── */
+    .header-accent { height: 5px; background: #81152F; }
+    header {
+      background: #001B67; color: #fff; padding: 20px 40px;
+      display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 14px;
+    }
+    .brand { display: flex; align-items: center; gap: 16px; }
+    .logo-box { background: #fff; border-radius: 6px; padding: 6px 12px; font-weight: 900; font-size: 15px; letter-spacing: 2px; color: #001B67; }
+    header h1 { font-size: 20px; font-weight: 700; }
+    header p  { font-size: 13px; color: rgba(255,255,255,0.5); margin-top: 2px; }
+
+    /* ── Controls bar ───────────────────────────────────── */
+    .controls {
+      background: #fff; border-bottom: 1px solid #E0E6F0; padding: 14px 40px;
+      display: flex; align-items: center; gap: 20px; flex-wrap: wrap;
+    }
+    .ctrl-group { display: flex; align-items: center; gap: 10px; }
+    .ctrl-label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: #81152F; white-space: nowrap; }
+    .date-input {
+      padding: 7px 12px; border: 1.5px solid #D0D8EE; border-radius: 7px;
+      font-size: 13px; color: #001B67; cursor: pointer; width: 140px; background: #fff;
+    }
+    .ctrl-sep { color: #ccc; font-size: 16px; }
+    .preset-btn {
+      padding: 6px 14px; border: 1.5px solid #D0D8EE; border-radius: 20px;
+      font-size: 12px; font-weight: 600; color: #555; cursor: pointer; background: #fff;
+      transition: all 0.15s;
+    }
+    .preset-btn:hover, .preset-btn.active { background: #001B67; color: #fff; border-color: #001B67; }
+    .refresh-btn {
+      margin-left: auto; padding: 7px 18px; background: #81152F; color: #fff;
+      border: none; border-radius: 7px; font-size: 13px; font-weight: 600; cursor: pointer;
+      display: flex; align-items: center; gap: 7px; transition: background 0.15s;
+    }
+    .refresh-btn:hover { background: #A01A3B; }
+    .refresh-btn svg { animation: none; }
+    .refresh-btn.loading svg { animation: spin 0.8s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .status-dot { width: 8px; height: 8px; border-radius: 50%; background: #ccc; }
+    .status-dot.ok  { background: #1A6B3C; }
+    .status-dot.err { background: #81152F; }
+    .status-text { font-size: 11px; color: #888; white-space: nowrap; }
+
+    /* ── Main ───────────────────────────────────────────── */
+    main { padding: 28px 40px; max-width: 1400px; margin: 0 auto; }
+    .section-title {
+      font-size: 11px; font-weight: 700; letter-spacing: 1.6px; text-transform: uppercase;
+      color: #81152F; margin-bottom: 14px; padding-left: 10px; border-left: 3px solid #81152F;
+    }
+
+    /* ── KPI row ────────────────────────────────────────── */
+    .kpi-row { display: grid; grid-template-columns: 220px 1fr 1fr 1fr 1fr; gap: 12px; margin-bottom: 24px; }
+    .kpi-card { background: #fff; border-radius: 12px; padding: 20px 22px; box-shadow: 0 1px 4px rgba(0,27,103,0.08); }
+    .kpi-card.nps-main {
+      background: #001B67; color: #fff; display: flex; flex-direction: column;
+      align-items: center; justify-content: center; text-align: center;
+    }
+    .nps-main .label { font-size: 10px; font-weight: 700; letter-spacing: 1.8px; text-transform: uppercase; color: rgba(255,255,255,0.45); margin-bottom: 4px; }
+    .nps-main .score { font-size: 62px; font-weight: 800; line-height: 1; color: #fff; letter-spacing: -2px; }
+    .nps-main .sublabel { font-size: 11px; color: rgba(255,255,255,0.4); margin-top: 4px; }
+    .nps-bar { margin-top: 12px; width: 100%; height: 5px; border-radius: 3px; background: rgba(255,255,255,0.12); overflow: hidden; display: flex; }
+    .nps-bar .seg { height: 100%; }
+    .kpi-label { font-size: 10px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: #81152F; margin-bottom: 6px; }
+    .kpi-value { font-size: 34px; font-weight: 800; line-height: 1; letter-spacing: -1px; }
+    .kpi-sub { font-size: 12px; color: #888; margin-top: 4px; }
+    .kpi-pct { display: inline-block; margin-top: 7px; padding: 3px 10px; border-radius: 20px; font-size: 12px; font-weight: 600; }
+    .promoter .kpi-value { color: #1A6B3C; } .promoter .kpi-pct { background: #E5F5EC; color: #1A6B3C; }
+    .passive  .kpi-value { color: #B36200; } .passive  .kpi-pct { background: #FEF3E2; color: #B36200; }
+    .detractor.kpi-value { color: #81152F; } .detractor.kpi-pct { background: #F9E5EA; color: #81152F; }
+    .total    .kpi-value { color: #001B67; } .total    .kpi-pct { background: #E8ECF7; color: #001B67; }
+
+    /* ── Cards & charts ─────────────────────────────────── */
+    .row-2    { display: grid; grid-template-columns: 1.4fr 1fr; gap: 12px; margin-bottom: 24px; }
+    .row-2-eq { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 24px; }
+    .card { background: #fff; border-radius: 12px; padding: 20px 24px; box-shadow: 0 1px 4px rgba(0,27,103,0.08); }
+    .card-title    { font-size: 14px; font-weight: 700; color: #001B67; margin-bottom: 2px; }
+    .card-subtitle { font-size: 12px; color: #81152F; margin-bottom: 16px; font-style: italic; }
+    .chart-wrap { position: relative; } .chart-wrap.tall { height: 290px; }
+    .stat-bars { display: flex; flex-direction: column; gap: 12px; margin-top: 4px; }
+    .stat-bar-row { display: flex; align-items: center; gap: 10px; font-size: 13px; }
+    .stat-bar-label { width: 134px; color: #333; flex-shrink: 0; }
+    .stat-bar-track { flex: 1; height: 9px; background: #EEF0F7; border-radius: 5px; overflow: hidden; }
+    .stat-bar-fill  { height: 100%; border-radius: 5px; transition: width 0.5s ease; }
+    .stat-bar-count { width: 40px; text-align: right; font-weight: 700; color: #001B67; font-size: 13px; }
+    .stat-bar-pct   { width: 38px; text-align: right; color: #888; font-size: 12px; }
+    .dist-row { display: flex; align-items: flex-end; gap: 5px; height: 90px; margin-top: 10px; }
+    .dist-col { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 3px; }
+    .dist-bar { width: 100%; border-radius: 3px 3px 0 0; transition: height 0.4s ease; }
+    .dist-label { font-size: 11px; font-weight: 700; }
+    .legend { display: flex; gap: 14px; margin-top: 12px; flex-wrap: wrap; }
+    .legend-item { display: flex; align-items: center; gap: 6px; font-size: 12px; color: #444; }
+    .legend-dot { width: 10px; height: 10px; border-radius: 3px; flex-shrink: 0; }
+    .scale-note { font-size: 11px; color: #81152F; margin-top: 10px; font-style: italic; }
+    .tag-grid { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 6px; }
+    .tag { padding: 5px 13px; border-radius: 20px; font-size: 13px; font-weight: 600; background: #EEF0F7; color: #001B67; border: 1px solid #D0D8EE; display: flex; align-items: center; gap: 8px; }
+    .tag .tag-count { background: #001B67; color: #fff; border-radius: 20px; font-size: 11px; font-weight: 700; padding: 1px 7px; min-width: 22px; text-align: center; }
+    .response-list { display: flex; flex-direction: column; gap: 9px; margin-top: 6px; max-height: 340px; overflow-y: auto; }
+    .response-item { border-left: 3px solid #001B67; padding: 9px 13px; background: #F7F8FC; border-radius: 0 8px 8px 0; font-size: 13px; color: #1A1A2E; line-height: 1.5; }
+    .response-meta { font-size: 11px; color: #81152F; font-weight: 600; margin-bottom: 3px; letter-spacing: 0.5px; }
+    .open-label { font-size: 12px; font-weight: 700; color: #001B67; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.8px; }
+    .empty-state { text-align: center; padding: 28px 0; color: #aaa; font-size: 13px; font-style: italic; }
+
+    /* ── No-data banner ─────────────────────────────────── */
+    .no-data-banner {
+      background: #FEF3E2; border: 1.5px solid #F0A500; border-radius: 10px;
+      padding: 14px 20px; font-size: 13px; color: #7A4800; margin-bottom: 20px;
+      display: none; align-items: center; gap: 10px;
+    }
+    .no-data-banner.show { display: flex; }
+
+    footer { text-align: center; padding: 20px 40px; font-size: 12px; color: #9AAAD4; }
+  </style>
+</head>
+<body>
+
+<!-- ── HEADER ──────────────────────────────────────────────── -->
+<div class="header-accent"></div>
+<header>
+  <div class="brand">
+    <div class="logo-box">TANNICO</div>
+    <div>
+      <h1>NPS Dashboard <span style="font-size:13px;font-weight:400;color:rgba(255,255,255,0.4)">· Live</span></h1>
+      <p>Sondaggio post-acquisto · OmniPulse + Vercel KV</p>
+    </div>
+  </div>
+  <div style="display:flex;align-items:center;gap:14px;">
+    <div class="status-dot" id="status-dot"></div>
+    <span class="status-text" id="status-text">Caricamento...</span>
+  </div>
+</header>
+
+<!-- ── CONTROLS ────────────────────────────────────────────── -->
+<div class="controls">
+  <div class="ctrl-group">
+    <span class="ctrl-label">Periodo</span>
+    <input type="text" id="date-from" class="date-input" placeholder="Data inizio" readonly>
+    <span class="ctrl-sep">→</span>
+    <input type="text" id="date-to"   class="date-input" placeholder="Data fine"   readonly>
+  </div>
+  <div class="ctrl-group" style="gap:6px">
+    <button class="preset-btn" onclick="setPreset(7)">7 giorni</button>
+    <button class="preset-btn" onclick="setPreset(30)">30 giorni</button>
+    <button class="preset-btn" onclick="setPreset(90)">90 giorni</button>
+    <button class="preset-btn" onclick="setPreset(0)">Tutto</button>
+  </div>
+  <button class="refresh-btn" id="refresh-btn" onclick="loadData()">
+    <svg id="spin-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+    Aggiorna
+  </button>
+  <span class="status-text" id="last-updated" style="font-size:11px;color:#aaa"></span>
+</div>
+
+<!-- ── MAIN ────────────────────────────────────────────────── -->
+<main>
+  <div class="no-data-banner" id="no-data-banner">
+    ⚠ Nessuna risposta nel periodo selezionato. Prova un intervallo di date più ampio o verifica che il webhook abbia ricevuto dati.
+  </div>
+
+  <div class="section-title" style="margin-top:0">Panoramica NPS</div>
+  <div class="kpi-row">
+    <div class="kpi-card nps-main">
+      <div class="label">NPS Score</div>
+      <div class="score" id="k-nps">—</div>
+      <div class="sublabel">Net Promoter Score</div>
+      <div class="nps-bar"><div class="seg" id="bar-p" style="background:#1A6B3C"></div><div class="seg" id="bar-pa" style="background:#B36200"></div><div class="seg" id="bar-d" style="background:#81152F"></div></div>
+    </div>
+    <div class="kpi-card promoter">
+      <div class="kpi-label">Promotori</div>
+      <div class="kpi-value" id="k-prom">—</div>
+      <div class="kpi-sub">Score 9–10</div>
+      <span class="kpi-pct" id="k-prom-pct">—%</span>
+    </div>
+    <div class="kpi-card passive">
+      <div class="kpi-label">Passivi</div>
+      <div class="kpi-value" id="k-pass">—</div>
+      <div class="kpi-sub">Score 7–8</div>
+      <span class="kpi-pct" id="k-pass-pct">—%</span>
+    </div>
+    <div class="kpi-card detractor">
+      <div class="kpi-label">Detrattori</div>
+      <div class="kpi-value" id="k-detr">—</div>
+      <div class="kpi-sub">Score 0–6</div>
+      <span class="kpi-pct" id="k-detr-pct">—%</span>
+    </div>
+    <div class="kpi-card total">
+      <div class="kpi-label">Risposte totali</div>
+      <div class="kpi-value" id="k-total">—</div>
+      <div class="kpi-sub">Survey completati</div>
+      <span class="kpi-pct" id="k-period" style="background:#E8ECF7;color:#001B67">Periodo selezionato</span>
+    </div>
+  </div>
+
+  <div class="row-2">
+    <div class="card">
+      <div class="card-title">Distribuzione punteggi NPS</div>
+      <div class="card-subtitle">Frequenza per punteggio (0–10)</div>
+      <div class="dist-row" id="distRow"></div>
+      <div class="legend">
+        <div class="legend-item"><div class="legend-dot" style="background:#1A6B3C"></div>Promotori (9-10)</div>
+        <div class="legend-item"><div class="legend-dot" style="background:#B36200"></div>Passivi (7-8)</div>
+        <div class="legend-item"><div class="legend-dot" style="background:#81152F"></div>Detrattori (0-6)</div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-title">Probabilità di riacquisto</div>
+      <div class="card-subtitle">Quanto è probabile che tu riacquisti nei prossimi mesi?</div>
+      <div class="stat-bars" id="repurchaseBars"></div>
+    </div>
+  </div>
+
+  <div class="section-title">Valutazione aspetti del servizio</div>
+  <div class="row-2">
+    <div class="card">
+      <div class="card-title">Punteggi medi per aspetto</div>
+      <div class="card-subtitle">Scala 1–5 · Come valuteresti i seguenti aspetti?</div>
+      <div class="chart-wrap tall"><canvas id="aspectBar"></canvas></div>
+      <div class="scale-note">* Servizio clienti: solo utenti che hanno contattato il supporto</div>
+    </div>
+    <div class="card">
+      <div class="card-title">Radar degli aspetti</div>
+      <div class="card-subtitle">Confronto visivo su scala 1–5</div>
+      <div class="chart-wrap tall"><canvas id="aspectRadar"></canvas></div>
+    </div>
+  </div>
+
+  <div class="section-title">Fattori e aree di miglioramento</div>
+  <div class="row-2-eq">
+    <div class="card">
+      <div class="card-title">Cosa ha influenzato maggiormente il giudizio?</div>
+      <div class="card-subtitle">Risposta multipla — n. di menzioni</div>
+      <div class="chart-wrap tall"><canvas id="factorsChart"></canvas></div>
+    </div>
+    <div class="card">
+      <div class="card-title">Su cosa possiamo migliorare?</div>
+      <div class="card-subtitle">Risposta multipla — n. di menzioni</div>
+      <div class="chart-wrap tall"><canvas id="improvementsChart"></canvas></div>
+    </div>
+  </div>
+
+  <div class="section-title">Risposte aperte</div>
+  <div class="row-2-eq">
+    <div class="card">
+      <div class="card-title">Dove acquisteresti i tuoi vini, se non da Tannico?</div>
+      <div class="card-subtitle">Risposta condizionale · Canali alternativi</div>
+      <div class="open-label" style="margin-top:4px">Canali menzionati</div>
+      <div class="tag-grid" id="competitorTags"></div>
+      <div class="open-label" style="margin-top:14px">Risposte complete</div>
+      <div class="response-list" id="whereElseList"></div>
+    </div>
+    <div class="card">
+      <div class="card-title">Prodotti o cantine non trovate su Tannico</div>
+      <div class="card-subtitle">Risposta aperta · Cosa cercavi che non hai trovato</div>
+      <div class="response-list" id="cantineList"></div>
+    </div>
+  </div>
+</main>
+<footer id="footer-text">Tannico NPS Dashboard · Live via Vercel KV</footer>
+
+<script>
+// ════════════════════════════════════════════════════════════
+// FIELD DEFINITIONS (matching webhook.js record keys)
+// ════════════════════════════════════════════════════════════
+const ASPECT_DEFS = [
+  { label: 'Metodi di pagamento', field: 'a_pagamento'  },
+  { label: 'Tempi di spedizione', field: 'a_spedizione' },
+  { label: 'Selezione dei vini',  field: 'a_vini'       },
+  { label: 'Esperienza sito/app', field: 'a_sito'       },
+  { label: 'Servizio clienti *',  field: 'a_svc'        },
+  { label: 'Prezzi e offerte',    field: 'a_prezzi'     },
+];
+const RADAR_ORDER       = ['Tempi di spedizione','Metodi di pagamento','Selezione dei vini','Esperienza sito/app','Servizio clienti *','Prezzi e offerte'];
+const REPURCHASE_ORDER  = ['Molto probabile','Probabile','Non lo so','Poco probabile'];
+const REPURCHASE_COLORS = ['#1A6B3C','#2E9E60','#B36200','#81152F'];
+
+// ════════════════════════════════════════════════════════════
+// STATE
+// ════════════════════════════════════════════════════════════
+let allRecords = [];   // all records from /api/data (JSON objects)
+let charts     = {};   // Chart.js instances
+
+// ════════════════════════════════════════════════════════════
+// DATE PICKERS
+// ════════════════════════════════════════════════════════════
+function initDatePickers() {
+  const opts = { locale: 'it', dateFormat: 'd/m/Y', allowInput: false, onChange: () => applyFiltersAndRender() };
+  flatpickr('#date-from', { ...opts, onReady: (_, __, fp) => { window._fpFrom = fp; } });
+  flatpickr('#date-to',   { ...opts, onReady: (_, __, fp) => { window._fpTo   = fp; } });
+}
+
+function setPreset(days) {
+  document.querySelectorAll('.preset-btn').forEach(b => b.classList.remove('active'));
+  event.target.classList.add('active');
+  const to = new Date();
+  if (days === 0) {
+    window._fpFrom && window._fpFrom.clear();
+    window._fpTo   && window._fpTo.clear();
+  } else {
+    const from = new Date(to); from.setDate(from.getDate() - days);
+    window._fpFrom && window._fpFrom.setDate(from);
+    window._fpTo   && window._fpTo.setDate(to);
+  }
+  applyFiltersAndRender();
+}
+
+// ════════════════════════════════════════════════════════════
+// DATA LOADING — fetches from /api/data (same-origin JSON)
+// ════════════════════════════════════════════════════════════
+async function loadData() {
+  const btn = document.getElementById('refresh-btn');
+  btn.classList.add('loading');
+  setStatus('loading');
+
+  try {
+    const res = await fetch('/api/data?limit=5000&t=' + Date.now());
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const json = await res.json();
+    allRecords = json.records || [];
+    setStatus('ok', `${allRecords.length} risposte · aggiornato ${new Date().toLocaleTimeString('it-IT')}`);
+    document.getElementById('last-updated').textContent = `Ultimo aggiornamento: ${new Date().toLocaleTimeString('it-IT')}`;
+    applyFiltersAndRender();
+  } catch (err) {
+    setStatus('err', 'Errore: ' + err.message);
+    console.error(err);
+  } finally {
+    btn.classList.remove('loading');
+  }
+}
+
+function setStatus(state, msg) {
+  const dot  = document.getElementById('status-dot');
+  const text = document.getElementById('status-text');
+  dot.className    = 'status-dot ' + (state === 'ok' ? 'ok' : state === 'err' ? 'err' : '');
+  text.textContent = msg || (state === 'loading' ? 'Caricamento...' : state === 'ok' ? 'Connesso' : 'Errore');
+}
+
+// ════════════════════════════════════════════════════════════
+// FILTERING (client-side, same logic as online version)
+// ════════════════════════════════════════════════════════════
+function applyFiltersAndRender() {
+  const fromEl = document.getElementById('date-from').value;
+  const toEl   = document.getElementById('date-to').value;
+
+  let from = null, to = null;
+  if (fromEl) {
+    const [d,m,y] = fromEl.split('/');
+    from = new Date(+y, +m-1, +d);
+    from.setHours(0,0,0,0);
+  }
+  if (toEl) {
+    const [d,m,y] = toEl.split('/');
+    to = new Date(+y, +m-1, +d);
+    to.setHours(23,59,59,999);
+  }
+
+  const filtered = allRecords.filter(r => {
+    if (!from && !to) return true;
+    const ts = r.ts;
+    if (!ts) return false;
+    const d = new Date(ts);
+    if (isNaN(d)) return false;
+    if (from && d < from) return false;
+    if (to   && d > to  ) return false;
+    return true;
+  });
+
+  renderDashboard(filtered);
+}
+
+// ════════════════════════════════════════════════════════════
+// PARSING HELPERS
+// ════════════════════════════════════════════════════════════
+function parseRating(v) {
+  if (v === null || v === undefined || v === '') return null;
+  if (typeof v === 'number') return v;
+  const s = String(v).trim().replace('5 = alto','5').replace('1 = basso','1');
+  const n = parseFloat(s);
+  return isNaN(n) ? null : n;
+}
+
+function parseMultiselect(field, rows, minCount = 2) {
+  const counts = {};
+  rows.forEach(r => {
+    const v = (r[field] || '').trim();
+    if (!v || v === ' ') return;
+    v.split('|').forEach(p => {
+      p = p.trim();
+      if (p && p.length < 80) counts[p] = (counts[p] || 0) + 1;
+    });
+  });
+  return Object.entries(counts).filter(([,c]) => c >= minCount).sort((a,b) => b[1] - a[1]);
+}
+
+// ════════════════════════════════════════════════════════════
+// MAIN RENDER
+// ════════════════════════════════════════════════════════════
+function renderDashboard(rows) {
+  const banner = document.getElementById('no-data-banner');
+
+  // ── NPS ────────────────────────────────────────────
+  const npsScores  = rows.map(r => {
+    const n = parseInt(r.nps);
+    return isNaN(n) ? NaN : n;
+  }).filter(n => !isNaN(n));
+  const total      = npsScores.length;
+  banner.classList.toggle('show', total === 0);
+
+  const promoters  = npsScores.filter(n => n >= 9).length;
+  const passives   = npsScores.filter(n => n >= 7 && n <= 8).length;
+  const detractors = npsScores.filter(n => n <= 6).length;
+  const nps        = total > 0 ? Math.round((promoters - detractors) / total * 100) : 0;
+  const pp  = total > 0 ? (promoters  / total * 100).toFixed(1) : 0;
+  const pap = total > 0 ? (passives   / total * 100).toFixed(1) : 0;
+  const dp  = total > 0 ? (detractors / total * 100).toFixed(1) : 0;
+
+  document.getElementById('k-nps').textContent      = total > 0 ? nps : '—';
+  document.getElementById('k-prom').textContent     = promoters;
+  document.getElementById('k-pass').textContent     = passives;
+  document.getElementById('k-detr').textContent     = detractors;
+  document.getElementById('k-total').textContent    = total;
+  document.getElementById('k-prom-pct').textContent = pp  + '%';
+  document.getElementById('k-pass-pct').textContent = pap + '%';
+  document.getElementById('k-detr-pct').textContent = dp  + '%';
+  document.getElementById('bar-p').style.width  = pp  + '%';
+  document.getElementById('bar-pa').style.width = pap + '%';
+  document.getElementById('bar-d').style.width  = dp  + '%';
+
+  // ── Score distribution ─────────────────────────────
+  const distColors = ['#81152F','#81152F','#81152F','#81152F','#81152F','#81152F','#81152F','#B36200','#B36200','#1A6B3C','#1A6B3C'];
+  const dist  = Array.from({length: 11}, (_, i) => npsScores.filter(n => n === i).length);
+  const mx    = Math.max(...dist, 1);
+  const distEl = document.getElementById('distRow');
+  distEl.innerHTML = '';
+  dist.forEach((count, i) => {
+    const h = Math.max(3, Math.round(count / mx * 82));
+    distEl.innerHTML += `<div class="dist-col"><div style="font-size:10px;color:#888;height:14px;display:flex;align-items:flex-end">${count || ''}</div><div class="dist-bar" style="height:${h}px;background:${distColors[i]};opacity:${count === 0 ? 0.1 : 1}"></div><div class="dist-label" style="color:${distColors[i]}">${i}</div></div>`;
+  });
+
+  // ── Repurchase ─────────────────────────────────────
+  const repBars   = document.getElementById('repurchaseBars');
+  repBars.innerHTML = '';
+  const repCounts = {};
+  rows.forEach(r => {
+    const v = (r.q_riacquisto || '').trim();
+    if (v && v !== ' ') repCounts[v] = (repCounts[v] || 0) + 1;
+  });
+  const repTotal = Object.values(repCounts).reduce((a,b) => a + b, 0);
+  REPURCHASE_ORDER.forEach((label, i) => {
+    const count = repCounts[label] || 0;
+    const pct   = repTotal > 0 ? Math.round(count / repTotal * 100) : 0;
+    repBars.innerHTML += `<div class="stat-bar-row"><div class="stat-bar-label">${label}</div><div class="stat-bar-track"><div class="stat-bar-fill" style="width:${pct}%;background:${REPURCHASE_COLORS[i]}"></div></div><div class="stat-bar-count">${count}</div><div class="stat-bar-pct">${pct}%</div></div>`;
+  });
+
+  // ── Aspects ────────────────────────────────────────
+  const aspects = ASPECT_DEFS.map(def => {
+    const vals = rows.map(r => parseRating(r[def.field])).filter(v => v !== null);
+    const avg  = vals.length > 0 ? (vals.reduce((a,b) => a + b, 0) / vals.length).toFixed(2) : 0;
+    return { label: def.label, avg: parseFloat(avg), n: vals.length };
+  }).sort((a,b) => b.avg - a.avg);
+
+  updateBarChart('aspectBar', aspects.map(a => a.label), aspects.map(a => a.avg),
+    aspects.map(a => a.avg >= 4.4 ? '#001B67' : a.avg >= 4.0 ? '#2D5FC4' : '#81152F'),
+    ctx => ` Media: ${ctx.parsed.x.toFixed(2)} / 5  (n=${aspects[ctx.dataIndex]?.n})`);
+
+  const radarMap = Object.fromEntries(aspects.map(a => [a.label, a.avg]));
+  updateRadarChart('aspectRadar', RADAR_ORDER, RADAR_ORDER.map(l => radarMap[l] || 0));
+
+  // ── Factors & improvements ─────────────────────────
+  const factors = parseMultiselect('q_giudizio',   rows).slice(0, 6);
+  const improvs = parseMultiselect('q_migliorare', rows).slice(0, 6);
+  updateHBarChart('factorsChart',      factors.map(f => f[0]), factors.map(f => f[1]), ['#001B67','#132E8A','#2040AD','#3355C0','#4D6DD4','#6685E0']);
+  updateHBarChart('improvementsChart', improvs.map(f => f[0]), improvs.map(f => f[1]), ['#81152F','#941E3A','#A62A46','#B83655','#C74268','#D5507A']);
+
+  // ── Competitors / where else ───────────────────────
+  const compCounts = {}; const whereElseArr = [];
+  rows.forEach(r => {
+    const v = (r.q_dove || '').trim();
+    if (!v || v === ' ') return;
+    whereElseArr.push({ score: parseInt(r.nps), text: v.replace(/\|/g, ' · ') });
+    v.split('|').forEach(p => { p = p.trim(); if (p) compCounts[p] = (compCounts[p] || 0) + 1; });
+  });
+  const compSorted = Object.entries(compCounts).sort((a,b) => b[1] - a[1]);
+  const tagEl = document.getElementById('competitorTags');
+  tagEl.innerHTML = compSorted.length
+    ? compSorted.map(([n,c]) => `<div class="tag">${n}<span class="tag-count">${c}</span></div>`).join('')
+    : '<div style="font-size:12px;color:#aaa;font-style:italic">Nessun dato nel periodo</div>';
+  buildResponseList('whereElseList', whereElseArr);
+
+  // ── Cantine ────────────────────────────────────────
+  const cantineArr = rows
+    .filter(r => (r.q_prodotti || '').trim() && (r.q_prodotti || '').trim() !== ' ')
+    .map(r => ({ score: parseInt(r.nps), text: (r.q_prodotti || '').trim() }));
+  buildResponseList('cantineList', cantineArr);
+
+  // Footer
+  const fromEl    = document.getElementById('date-from').value;
+  const toEl      = document.getElementById('date-to').value;
+  const periodStr = fromEl && toEl ? `${fromEl} → ${toEl}` : 'Tutto il periodo';
+  document.getElementById('footer-text').textContent = `Tannico NPS Dashboard · ${total} risposte · ${periodStr}`;
+}
+
+// ════════════════════════════════════════════════════════════
+// CHART HELPERS
+// ════════════════════════════════════════════════════════════
+const valueLabelPlugin = {
+  id: 'valueLabels',
+  afterDatasetsDraw(chart) {
+    const { ctx, scales } = chart;
+    chart.data.datasets[0].data.forEach((val, i) => {
+      const bar = chart.getDatasetMeta(0).data[i];
+      ctx.fillStyle = '#001B67'; ctx.font = 'bold 11px Segoe UI,system-ui,sans-serif';
+      ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
+      ctx.fillText(val, scales.x.getPixelForValue(val) + 5, bar.y);
+    });
+  }
+};
+
+function updateBarChart(id, labels, data, colors, tooltipCb) {
+  if (charts[id]) charts[id].destroy();
+  charts[id] = new Chart(document.getElementById(id), {
+    type: 'bar',
+    data: { labels, datasets: [{ data, backgroundColor: colors, borderRadius: 5, borderSkipped: false }] },
+    options: {
+      indexAxis: 'y', responsive: true, maintainAspectRatio: false,
+      scales: {
+        x: { min: 0, max: 5, grid: { color: 'rgba(0,27,103,0.06)' }, ticks: { font: { size: 11 }, stepSize: 1 } },
+        y: { grid: { display: false }, ticks: { font: { size: 12 }, color: '#001B67' } }
+      },
+      plugins: { legend: { display: false }, tooltip: { callbacks: { label: tooltipCb || (ctx => ctx.parsed.x) } } },
+      animation: { duration: 400 }
+    },
+    plugins: [valueLabelPlugin]
+  });
+}
+
+function updateHBarChart(id, labels, data, colors) {
+  if (charts[id]) charts[id].destroy();
+  charts[id] = new Chart(document.getElementById(id), {
+    type: 'bar',
+    data: { labels, datasets: [{ data, backgroundColor: colors, borderRadius: 5, borderSkipped: false }] },
+    options: {
+      indexAxis: 'y', responsive: true, maintainAspectRatio: false,
+      scales: {
+        x: { grid: { color: 'rgba(0,27,103,0.06)' }, ticks: { font: { size: 11 } } },
+        y: { grid: { display: false }, ticks: { font: { size: 12 }, color: '#001B67' } }
+      },
+      plugins: { legend: { display: false } },
+      animation: { duration: 400 }
+    },
+    plugins: [valueLabelPlugin]
+  });
+}
+
+function updateRadarChart(id, labels, data) {
+  if (charts[id]) charts[id].destroy();
+  charts[id] = new Chart(document.getElementById(id), {
+    type: 'radar',
+    data: { labels, datasets: [{ data, backgroundColor: 'rgba(0,27,103,0.10)', borderColor: '#001B67', borderWidth: 2, pointBackgroundColor: '#81152F', pointBorderColor: '#fff', pointBorderWidth: 2, pointRadius: 5 }] },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      scales: { r: { min: 0, max: 5, ticks: { stepSize: 1, font: { size: 10 }, backdropColor: 'transparent', color: '#888' }, grid: { color: 'rgba(0,27,103,0.09)' }, angleLines: { color: 'rgba(0,27,103,0.1)' }, pointLabels: { font: { size: 11 }, color: '#001B67' } } },
+      plugins: { legend: { display: false }, tooltip: { callbacks: { label: ctx => ` ${ctx.parsed.r.toFixed(2)} / 5` } } }
+    }
+  });
+}
+
+function buildResponseList(id, items) {
+  const el = document.getElementById(id);
+  if (!items.length) { el.innerHTML = '<div class="empty-state">Nessuna risposta nel periodo selezionato</div>'; return; }
+  el.innerHTML = items.map(r => `<div class="response-item"><div class="response-meta">NPS ${isNaN(r.score) ? '—' : r.score}</div>${r.text}</div>`).join('');
+}
+
+// ════════════════════════════════════════════════════════════
+// INIT
+// ════════════════════════════════════════════════════════════
+document.addEventListener('DOMContentLoaded', () => {
+  initDatePickers();
+  loadData();
+});
+</script>
+</body>
+</html>
