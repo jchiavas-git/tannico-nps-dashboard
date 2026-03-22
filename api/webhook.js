@@ -3,7 +3,7 @@
  * POST /api/webhook  ← paste this URL into OmniPulse → Settings → Webhook
  *
  * Environment variables (set in Vercel dashboard → Settings → Environment Variables):
- *   OMNICONVERT_SECRET   your OmniConvert API key
+ *   OMNICONVERT_SECRET   the Webhook Secret shown in OmniPulse webhook settings (NOT the API key)
  *   KV_REST_API_URL      auto-filled when you link a Vercel KV database
  *   KV_REST_API_TOKEN    auto-filled when you link a Vercel KV database
  */
@@ -20,7 +20,6 @@ function hmac(message, key) {
 
 // ─── Main handler ─────────────────────────────────────────────────────────────
 export default async function handler(req, res) {
-  // Allow CORS preflight
   res.setHeader('Access-Control-Allow-Origin',  '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
   if (req.method === 'OPTIONS') return res.status(200).end();
@@ -31,74 +30,66 @@ export default async function handler(req, res) {
   const secret = process.env.OMNICONVERT_SECRET || '';
   const ts     = String(Math.floor(Date.now() / 1000));
 
-  // ── Try base64-decoded secret as key ─────────────────────────────────────────
+  // ── Log EVERYTHING so we can diagnose ────────────────────────────────────
+  console.log('[webhook] === HEADERS ===');
+  console.log(JSON.stringify(req.headers));
+  console.log('[webhook] === BODY ===');
+  console.log(JSON.stringify(body));
+  console.log('[webhook] secret len:', secret.length, '| first4:', secret.slice(0, 4));
+
+  // ── Try base64-decoded secret as key ─────────────────────────────────────
   let secretB64 = secret;
   try { secretB64 = Buffer.from(secret, 'base64'); } catch(_) {}
 
-  // ── Log all variants (raw key + base64-decoded key) ───────────────────────
-  const v1 = `${ts}|${hmac(ts,           secret)}`;    // sign ts,     raw key
-  const v2 = `${ts}|${hmac(hookId,       secret)}`;    // sign hook_id, raw key
-  const v3 = `${ts}|${hmac(ts + hookId,  secret)}`;    // sign ts+id,  raw key
-  const v4 = `${ts}|${hmac(hookId + ts,  secret)}`;    // sign id+ts,  raw key
-  const v5 = `${ts}|${hmac(ts,           secretB64)}`; // sign ts,     b64 key
-  const v6 = `${ts}|${hmac(hookId,       secretB64)}`; // sign hook_id, b64 key
-  const v7 = `${ts}|${hmac(ts + hookId,  secretB64)}`; // sign ts+id,  b64 key
-  const v8 = `${ts}|${hmac(hookId + ts,  secretB64)}`; // sign id+ts,  b64 key
+  // ── All variants ─────────────────────────────────────────────────────────
+  const v1 = `${ts}|${hmac(ts,           secret)}`;
+  const v2 = `${ts}|${hmac(hookId,       secret)}`;
+  const v5 = `${ts}|${hmac(ts,           secretB64)}`;
+  const v6 = `${ts}|${hmac(hookId,       secretB64)}`;
 
-  console.log('[webhook] hook_id :', hookId);
-  console.log('[webhook] secret  :', secret ? `${secret.slice(0,4)}… (len ${secret.length})` : 'NOT SET');
-  console.log('[webhook] v1 raw  sign(ts)         :', v1);
-  console.log('[webhook] v2 raw  sign(hook_id)    :', v2);
-  console.log('[webhook] v3 raw  sign(ts+hook_id) :', v3);
-  console.log('[webhook] v4 raw  sign(hook_id+ts) :', v4);
-  console.log('[webhook] v5 b64  sign(ts)         :', v5);
-  console.log('[webhook] v6 b64  sign(hook_id)    :', v6);
-  console.log('[webhook] v7 b64  sign(ts+hook_id) :', v7);
-  console.log('[webhook] v8 b64  sign(hook_id+ts) :', v8);
+  console.log('[webhook] v1 raw sign(ts)      :', v1);
+  console.log('[webhook] v2 raw sign(hook_id) :', v2);
+  console.log('[webhook] v5 b64 sign(ts)      :', v5);
+  console.log('[webhook] v6 b64 sign(hook_id) :', v6);
 
-  // ── Use v5 (sign timestamp with base64-decoded key) ───────────────────────
-  const response = v5;
-  console.log('[webhook] responding with v5   :', response);
+  // ── Respond with v1 (sign timestamp, raw key) ────────────────────────────
+  const response = v1;
+  console.log('[webhook] responding:', response);
 
-  // ── Store survey response (only real submissions, not pings) ──
+  // ── Store real survey responses (not pings) ───────────────────────────────
   const payload = body._payload || {};
   const isReal  = payload.customer_eid && payload.customer_eid !== '';
   if (isReal) {
     try {
       const record = {
-        ts:          new Date().toISOString(),
-        customer_id: payload.customer_eid        || '',
-        email:       payload.email               || '',
-        nps:         payload.nps_score           ?? null,
-        // Survey question fields — keys confirmed once first real submission arrives
-        // (check Vercel function logs for actual field names in _payload)
-        q_consiglio:  payload.q_consiglio         || payload['Q (1) - Quanto è probabile che tu consigli Tannico a un amico o collega?'] || '',
+        ts:           new Date().toISOString(),
+        customer_id:  payload.customer_eid        || '',
+        email:        payload.email               || '',
+        nps:          payload.nps_score           ?? null,
+        q_consiglio:  payload.q_consiglio         || '',
         q_insoddf:    payload.q_insoddisfatto      || '',
         q_migliorare: payload.q_migliorare         || '',
         q_riacquisto: payload.q_riacquisto         || '',
         q_dove:       payload.q_dove               || '',
         q_prodotti:   payload.q_prodotti           || '',
         q_giudizio:   payload.q_giudizio           || '',
-        a_svc:        payload.a_servizio_clienti   || null,
-        a_sito:       payload.a_sito_app           || null,
-        a_prezzi:     payload.a_prezzi             || null,
-        a_spedizione: payload.a_spedizione         || null,
-        a_pagamento:  payload.a_pagamento          || null,
-        a_vini:       payload.a_vini               || null,
+        a_svc:        payload.a_servizio_clienti   ?? null,
+        a_sito:       payload.a_sito_app           ?? null,
+        a_prezzi:     payload.a_prezzi             ?? null,
+        a_spedizione: payload.a_spedizione         ?? null,
+        a_pagamento:  payload.a_pagamento          ?? null,
+        a_vini:       payload.a_vini               ?? null,
       };
-      // Prepend to KV list (newest first), keep max 5000 entries
       await kv.lpush('nps:responses', JSON.stringify(record));
       await kv.ltrim('nps:responses', 0, 4999);
       console.log('[webhook] saved response for', record.email);
     } catch (err) {
-      // KV might not be configured yet — log but don't block the response
       console.error('[webhook] KV write failed:', err.message);
     }
   } else {
-    console.log('[webhook] ping/test payload (no customer_eid) — not stored');
+    console.log('[webhook] ping — not stored');
   }
 
-  // ── Respond with timestamp|hmac ──
   res.status(200)
      .setHeader('Content-Type', 'text/plain')
      .send(response);
