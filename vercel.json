@@ -3,8 +3,5 @@
   "routes": [
     { "src": "/api/(.*)", "dest": "/api/$1" },
     { "src": "/(.*)",     "dest": "/public/$1" }
-  ],
-  "env": {
-    "OMNICONVERT_SECRET": "@omniconvert_secret"
-  }
+  ]
 }
