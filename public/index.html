@@ -137,6 +137,19 @@
     .response-meta { font-size: 11px; color: #81152F; font-weight: 600; margin-bottom: 3px; }
     .open-label { font-size: 12px; font-weight: 700; color: #001B67; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.8px; }
     .empty-state { text-align: center; padding: 28px 0; color: #aaa; font-size: 13px; font-style: italic; }
+    /* ── Segment toggles ────────────────────────────────── */
+    .seg-toggle {
+      padding: 6px 14px; border-radius: 20px; font-size: 12px; font-weight: 600;
+      cursor: pointer; border: 1.5px solid; transition: all 0.15s; opacity: 0.35;
+    }
+    .seg-toggle.active { opacity: 1; }
+    .seg-toggle.prom  { color: #1A6B3C; border-color: #1A6B3C; background: #fff; }
+    .seg-toggle.pass  { color: #B36200; border-color: #B36200; background: #fff; }
+    .seg-toggle.detr  { color: #81152F; border-color: #81152F; background: #fff; }
+    .seg-toggle.prom.active  { background: #E5F5EC; }
+    .seg-toggle.pass.active  { background: #FEF3E2; }
+    .seg-toggle.detr.active  { background: #F9E5EA; }
+
     .no-data-banner {
       background: #FEF3E2; border: 1.5px solid #F0A500; border-radius: 10px;
       padding: 14px 20px; font-size: 13px; color: #7A4800; margin-bottom: 20px;
@@ -190,6 +203,13 @@
     <button class="preset-btn" onclick="setPreset(30)">30 giorni</button>
     <button class="preset-btn" onclick="setPreset(90)">90 giorni</button>
     <button class="preset-btn active" onclick="setPreset(0)">Tutto</button>
+  </div>
+  <div style="width:1px;height:24px;background:#E0E6F0;margin:0 4px"></div>
+  <div class="ctrl-group" style="gap:6px">
+    <span class="ctrl-label">Profilo</span>
+    <button class="seg-toggle prom active" id="seg-prom" onclick="toggleSegment('prom')">Promotori</button>
+    <button class="seg-toggle pass active" id="seg-pass" onclick="toggleSegment('pass')">Passivi</button>
+    <button class="seg-toggle detr active" id="seg-detr" onclick="toggleSegment('detr')">Detrattori</button>
   </div>
   <span class="status-text" id="status-text"></span>
 </div>
@@ -341,8 +361,9 @@ const REPURCHASE_COLORS = ['#1A6B3C','#2E9E60','#B36200','#81152F'];
 // ════════════════════════════════════════════════════════════
 // STATE
 // ════════════════════════════════════════════════════════════
-let allRows = [];
-let charts  = {};
+let allRows      = [];
+let charts       = {};
+let activeSegs   = new Set(['prom', 'pass', 'detr']);
 
 // ════════════════════════════════════════════════════════════
 // FILE UPLOAD
@@ -377,7 +398,9 @@ function handleFile(file) {
 }
 
 function resetUpload() {
-  allRows = [];
+  allRows    = [];
+  activeSegs = new Set(['prom', 'pass', 'detr']);
+  ['prom','pass','detr'].forEach(s => document.getElementById('seg-'+s).classList.add('active'));
   fileInput.value = '';
   uploadZone.classList.remove('has-data');
   document.getElementById('file-bar').classList.remove('show');
@@ -428,6 +451,20 @@ function initDatePickers() {
   flatpickr('#date-to',   { ...opts, onReady: (_, __, fp) => { window._fpTo   = fp; } });
 }
 
+function toggleSegment(seg) {
+  if (activeSegs.has(seg)) {
+    // Don't allow deselecting all three
+    if (activeSegs.size === 1) return;
+    activeSegs.delete(seg);
+  } else {
+    activeSegs.add(seg);
+  }
+  document.getElementById('seg-prom').classList.toggle('active', activeSegs.has('prom'));
+  document.getElementById('seg-pass').classList.toggle('active', activeSegs.has('pass'));
+  document.getElementById('seg-detr').classList.toggle('active', activeSegs.has('detr'));
+  applyFiltersAndRender();
+}
+
 function setPreset(days) {
   document.querySelectorAll('.preset-btn').forEach(b => b.classList.remove('active'));
   event.target.classList.add('active');
@@ -455,13 +492,26 @@ function applyFiltersAndRender() {
   if (toEl)   { const [d,m,y] = toEl.split('/');   to   = new Date(+y,+m-1,+d); to.setHours(23,59,59,999); }
 
   const filtered = allRows.filter(row => {
-    if (!from && !to) return true;
-    const ts = row[COL.timestamp];
-    if (!ts || ts.trim() === '') return false;
-    const d = new Date(ts);
-    if (isNaN(d)) return true;
-    if (from && d < from) return false;
-    if (to   && d > to  ) return false;
+    // Date filter
+    if (from || to) {
+      const ts = row[COL.timestamp];
+      if (!ts || ts.trim() === '') return false;
+      const d = new Date(ts);
+      if (!isNaN(d)) {
+        if (from && d < from) return false;
+        if (to   && d > to  ) return false;
+      }
+    }
+    // Segment filter
+    const nps = parseInt(row[COL.nps]);
+    if (!isNaN(nps)) {
+      const isProm = nps >= 9;
+      const isPass = nps >= 7 && nps <= 8;
+      const isDetr = nps <= 6;
+      if (isProm && !activeSegs.has('prom')) return false;
+      if (isPass && !activeSegs.has('pass')) return false;
+      if (isDetr && !activeSegs.has('detr')) return false;
+    }
     return true;
   });
 
